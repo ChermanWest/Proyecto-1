@@ -3,7 +3,7 @@ import tkinter as Tkinter
 from bleak import BleakClient, BleakScanner
 
 # UUID del carácter BLE del hub
-CHAR_UUID = "00001624-1212-efde-1623-785feabcd123"
+CHAR_UUID = "00001800-0000-1000-8000-00805f9b34fb"
 
 client = None
 loop = asyncio.get_event_loop()
@@ -119,5 +119,5 @@ finally:
     loop.run_until_complete(cerrar_conexion())
     loop.close()
 
-#.venv/scrips/activate.ps1
-# python legoTrabajo/interfaz.py
+    #.venv/scrips/activate.ps1
+# c:\Users\germa\Documents\GitHub\Proyecto-1\legoTrabajo\.venv\Scripts\Activate.ps1
