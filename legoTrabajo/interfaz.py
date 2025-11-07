@@ -119,5 +119,4 @@ finally:
     loop.run_until_complete(cerrar_conexion())
     loop.close()
 
-    #.venv/scrips/activate.ps1
 # c:\Users\germa\Documents\GitHub\Proyecto-1\legoTrabajo\.venv\Scripts\Activate.ps1

@@ -2,3 +2,19 @@ motor A= rueda tracera derecha
 motor E= rueda tracera izquierda
 motor c= ruedas delanteras
 
+botones
+-Adelante
+-Atras
+
+sliders 
+- Velocidad (0 a 100)
+- Giro ( -100 a 100)
+
+cuando adelante es presionado 
+mmotor A y E avanzaran hacia adelante
+
+
+cuando atras es presionado
+mmotor A y E avanzaran hacia atras
+
+
