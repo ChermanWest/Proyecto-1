@@ -1,8 +1,7 @@
 from pybricks.hubs import PrimeHub
 from pybricks.pupdevices import Motor
-from pybricks.parameters import Direction, Port
+from pybricks.parameters import Port
 from pybricks.tools import wait
-
 import sys
 
 # -----------------------------
@@ -20,7 +19,7 @@ giro = 0
 
 def aplicar_giro():
     """ Mueve el motor de dirección según el slider (-100 a 100). """
-    motor_dir.run_target(300, giro)  # 300 = velocidad del motor de dirección
+    motor_dir.run_target(300, giro)
 
 def mover_adelante():
     motor_der.dc(velocidad)
@@ -35,11 +34,13 @@ def detener():
     motor_izq.stop()
 
 # ----------------------------------------
-# ENVÍA "rdy" para indicar que está listo
+# ENVÍA "rdy" PARA INDICAR QUE ESTÁ LISTO
 # ----------------------------------------
 def enviar_ready():
-    sys.stdout.buffer.write(b"\x01rdy")
-    sys.stdout.buffer.flush()
+    # Añade un salto de línea para que el receptor basado en GATT pueda
+    # recibir la notificación por líneas.
+    sys.stdout.write("\x01rdy\n")
+    sys.stdout.flush()
 
 enviar_ready()
 
@@ -47,17 +48,19 @@ enviar_ready()
 # BUCLE PRINCIPAL DE COMANDOS
 # ----------------------------------------
 while True:
-    data = sys.stdin.buffer.read(1)
-    if not data:
+
+    # Leer por línea en lugar de `read()` que bloquea hasta EOF.
+    # Esto permite recibir comandos que el cliente BLE envía terminados
+    # con un '\n'.
+    cmd = sys.stdin.readline()
+
+    if not cmd:
+        wait(10)
         continue
-
-    if data[0] != 6:
-        continue  # Protocolo Pybricks: todos los comandos empiezan con 0x06
-
-    cmd = sys.stdin.buffer.readline().decode().strip()
+    cmd = cmd.strip()
 
     # -----------------------------
-    # COMANDOS RECIBIDOS DEL PC
+    # COMANDOS DEL PC
     # -----------------------------
     if cmd == "forward":
         mover_adelante()
@@ -70,10 +73,10 @@ while True:
 
     elif cmd.startswith("velocidad:"):
         velocidad = int(cmd.split(":")[1])
-    
+
     elif cmd.startswith("giro:"):
         giro = int(cmd.split(":")[1])
         aplicar_giro()
 
-    # Responde "rdy" para permitir el siguiente comando
+    # Confirma recepción al PC
     enviar_ready()

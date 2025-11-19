@@ -2,8 +2,10 @@ import asyncio
 import tkinter as Tkinter
 from bleak import BleakClient, BleakScanner
 
-# UUID del carácter BLE del hub
-CHAR_UUID = "00001800-0000-1000-8000-00805f9b34fb"
+# UUIDs serán detectadas dinámicamente tras la conexión
+CHAR_UUID = None
+WRITE_CHAR_UUID = None
+NOTIFY_CHAR_UUID = None
 
 client = None
 loop = asyncio.get_event_loop()
@@ -31,16 +33,51 @@ async def emparejar_async():
 
     if client.is_connected:
         print(f"Conectado exitosamente a {target.name}")
+
+        # Descubrir servicios y características para encontrar
+        # la característica correcta de escritura / notificación.
+        services = await client.get_services()
+        write_char = None
+        notify_char = None
+
+        for service in services:
+            for char in service.characteristics:
+                props = getattr(char, "properties", [])
+                # Buscar primera característica con capacidad de escritura
+                if ("write" in props or "write-without-response" in props) and not write_char:
+                    write_char = char
+                # Buscar primera característica con notificaciones
+                if ("notify" in props or "indicate" in props) and not notify_char:
+                    notify_char = char
+
+        if write_char:
+            WRITE_CHAR_UUID = write_char.uuid
+            print("Usando característica de escritura:", WRITE_CHAR_UUID)
+        else:
+            print("No se encontró característica de escritura.")
+
+        if notify_char:
+            NOTIFY_CHAR_UUID = notify_char.uuid
+            print("Usando característica de notificación:", NOTIFY_CHAR_UUID)
+            # Iniciar notificaciones
+            await client.start_notify(NOTIFY_CHAR_UUID, notification_handler)
+        else:
+            print("No se encontró característica de notificación.")
+
     else:
         print("No se pudo conectar.")
 
 async def send_async(cmd):
     """Envía un comando al hub si está conectado."""
     global client
-    if client and client.is_connected:
-        msg = cmd.encode("utf-8")
-        await client.write_gatt_char(CHAR_UUID, msg)
+    if client and client.is_connected and WRITE_CHAR_UUID:
+        # Terminar comando con newline para que el programa en el hub
+        # que lee por líneas lo reciba correctamente.
+        msg = (cmd + "\n").encode("utf-8")
+        await client.write_gatt_char(WRITE_CHAR_UUID, msg)
         print("Enviado:", cmd)
+    else:
+        print("No estás conectado al hub o no se encontró la característica de escritura.")
     else:
         print("No estás conectado al hub.")
 
@@ -48,6 +85,12 @@ async def cerrar_conexion():
     """Cierra la conexión BLE."""
     global client
     if client and client.is_connected:
+        # detiene notificaciones si hay una característica registrada
+        try:
+            if NOTIFY_CHAR_UUID:
+                await client.stop_notify(NOTIFY_CHAR_UUID)
+        except Exception:
+            pass
         await client.disconnect()
         print("Conexión cerrada.")
 
