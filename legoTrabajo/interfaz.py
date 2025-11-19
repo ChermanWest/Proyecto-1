@@ -17,7 +17,7 @@ async def emparejar_async():
 
     target = None
     for d in devices:
-        if "Pybricks" in d.name or "SPIKE" in d.name:
+        if "Pybricks" in d.name or "sp-7-" in d.name:
             target = d
             break
 
