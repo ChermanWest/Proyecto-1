@@ -20,15 +20,22 @@ asyncio.set_event_loop(loop)
 
 # ---------------- Funciones BLE ----------------
 async def emparejar_async():
-    """Busca y conecta con un hub Pybricks o SPIKE."""
-    # Declarar globals para que los UUIDs encontrados se asignen
     global client, WRITE_CHAR_UUID, NOTIFY_CHAR_UUID
     print("Buscando dispositivos BLE...")
+
     devices = await BleakScanner.discover(timeout=5.0)
+
+    print("Dispositivos encontrados:")
+    for d in devices:
+        print("-", d.address, d.name)
 
     target = None
     for d in devices:
-        if "Pybricks" in d.name or "sp-7-" in d.name:
+        name = d.name or ""   # <<<<<< 🔥 FIX IMPORTANTE
+        if ("Pybricks" in name or
+            "sp-7" in name or
+            "Spike" in name or
+            "Hub" in name):
             target = d
             break
 
