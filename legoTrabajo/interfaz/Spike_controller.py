@@ -1,65 +1,81 @@
 import asyncio
-from bleak import BleakScanner, BleakClient
+import serial
+import serial.tools.list_ports
+import threading
 
 class SpikeController:
     def __init__(self):
-        self.client = None
-        self.hub_address = None
+        self.ser = None
+        self.port = None
         self.connected = False
-        
-        # UUID para comunicación UART con LEGO Hub
-        self.UART_SERVICE_UUID = "00001800-0000-1000-8000-00805f9b34fb"
-        self.UART_TX_CHAR_UUID = "00001800-0000-1000-8000-00805f9b34fb"
+        self.lock = threading.Lock()
         
     async def scan_hubs(self):
-        devices = await BleakScanner.discover(timeout=15.0)
-        spike_hubs = []
-        all_devices = []
-        
-        for device in devices:
-            name = device.name if device.name else "Sin nombre"
-            all_devices.append((name, device.address))
-
-            if device.name:
-                n1 = device.name.lower()
-                n2 = device.name.upper()
-                if any(k in n2 for k in ["LEGO", "SPIKE", "TECHNIC", "HUB"]) or n1.startswith("sp-"):
-                    spike_hubs.append((device.name, device.address))
-        
-        return spike_hubs if spike_hubs else all_devices
-    
-    async def connect(self, address):
+        """Escanea puertos seriales disponibles."""
+        ports = []
         try:
-            self.client = BleakClient(address, timeout=20.0)
-            await self.client.connect()
+            for port_info in serial.tools.list_ports.comports():
+                port_name = port_info.device
+                description = port_info.description if port_info.description else ""
+                ports.append((f"{port_name} - {description}", port_name))
+            return ports if ports else [("Sin puertos disponibles", None)]
+        except Exception as e:
+            print(f"Error escaneando puertos: {e}")
+            return []
+    
+    async def connect(self, port):
+        """Conecta al hub a través del puerto serial."""
+        if not port:
+            print("Puerto inválido")
+            return False
+        try:
+            self.ser = serial.Serial(port, baudrate=115200, timeout=2.0)
+            self.port = port
             self.connected = True
-            self.hub_address = address
+            await asyncio.sleep(0.5)
+            print(f"Conectado al puerto {port}")
             return True
         except Exception as e:
-            print(f"Error conectando: {e}")
+            print(f"Error conectando al puerto {port}: {e}")
+            self.connected = False
             return False
     
     async def disconnect(self):
-        if self.client and self.connected:
-            await self.client.disconnect()
+        """Desconecta del hub."""
+        if self.ser and self.connected:
+            try:
+                self.ser.close()
+                print("Desconectado")
+            except Exception as e:
+                print(f"Error al desconectar: {e}")
         self.connected = False
     
     async def send_command(self, command):
-        if not self.connected or not self.client:
+        """Envía un comando al hub vía puerto serial."""
+        if not self.connected or not self.ser:
+            print("No conectado al hub")
             return False
         try:
-            await self.client.write_gatt_char(self.UART_TX_CHAR_UUID, command.encode())
+            with self.lock:
+                if isinstance(command, str):
+                    b = command.encode('utf-8')
+                else:
+                    b = bytes(command)
+                
+                if not b.endswith(b"\n"):
+                    b = b + b"\n"
+                
+                self.ser.write(b)
+                self.ser.flush()
+            
+            print(f"Enviado: {b.decode('utf-8', errors='replace').strip()}")
             return True
         except Exception as e:
             print(f"Error enviando comando: {e}")
+            self.connected = False
             return False
     
     async def move_motors(self, motor_a_speed, motor_b_speed, duration=1000):
-        cmd = (
-            "from spike import MotorPair\nimport time\n"
-            f"pair=MotorPair('A','B')\n"
-            f"pair.start_tank({motor_a_speed},{motor_b_speed})\n"
-            f"time.sleep({duration/1000})\n"
-            "pair.stop()\n"
-        )
+        """Envía comando de movimiento (compatible con auto.py)."""
+        cmd = f"velocidad:{int(motor_a_speed)}\n"
         await self.send_command(cmd)

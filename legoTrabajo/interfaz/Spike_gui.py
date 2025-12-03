@@ -2,6 +2,11 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import asyncio
 import threading
+import sys
+import os
+
+# Asegurar que la carpeta actual está en el path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from Spike_controller import SpikeController
 
@@ -84,7 +89,7 @@ class SpikeGUI:
         self.speed_label.config(text=f"{self.speed_var.get()}%")
         # Enviar la velocidad actual al hub (variable 'velocidad' en auto.py)
         try:
-            self.run_in_thread(self.controller.send_command(f"velocidad:{self.speed_var.get()}\n"))
+            self.run_in_thread(self.controller.send_command(f"velocidad:{self.speed_var.get()}"))
         except Exception:
             pass
     
@@ -175,13 +180,13 @@ class SpikeGUI:
     def move_forward(self):
         # Enviar comando simple al hub para mover adelante
         try:
-            self.run_in_thread(self.controller.send_command("forward\n"))
+            self.run_in_thread(self.controller.send_command("forward"))
         except Exception:
             pass
     
     def move_backward(self):
         try:
-            self.run_in_thread(self.controller.send_command("backward\n"))
+            self.run_in_thread(self.controller.send_command("backward"))
         except Exception:
             pass
     
@@ -189,7 +194,7 @@ class SpikeGUI:
         # Giro negativo
         giro = -50
         try:
-            self.run_in_thread(self.controller.send_command(f"giro:{giro}\n"))
+            self.run_in_thread(self.controller.send_command(f"giro:{giro}"))
         except Exception:
             pass
     
@@ -197,12 +202,12 @@ class SpikeGUI:
         # Giro positivo
         giro = 50
         try:
-            self.run_in_thread(self.controller.send_command(f"giro:{giro}\n"))
+            self.run_in_thread(self.controller.send_command(f"giro:{giro}"))
         except Exception:
             pass
     
     def stop(self):
         try:
-            self.run_in_thread(self.controller.send_command("stop\n"))
+            self.run_in_thread(self.controller.send_command("stop"))
         except Exception:
             pass
