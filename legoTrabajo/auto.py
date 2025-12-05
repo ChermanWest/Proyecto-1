@@ -9,7 +9,7 @@ import sys
 # -----------------------------
 hub = PrimeHub()
 
-motor_der = Motor(Port.A)   # Rueda derecha
+motorA = Motor(Port.A)   # Rueda derecha
 motor_izq = Motor(Port.E)   # Rueda izquierda
 motor_dir = Motor(Port.C)   # Dirección
 
@@ -22,15 +22,15 @@ def aplicar_giro():
     motor_dir.run_target(300, giro)
 
 def mover_adelante():
-    motor_der.dc(velocidad)
+    motorA.dc(velocidad)
     motor_izq.dc(velocidad)
 
 def mover_atras():
-    motor_der.dc(-velocidad)
+    motorA.dc(-velocidad)
     motor_izq.dc(-velocidad)
 
 def detener():
-    motor_der.stop()
+    motorA.stop()
     motor_izq.stop()
 
 # ----------------------------------------
@@ -61,11 +61,12 @@ while True:
 
     # -----------------------------
     # COMANDOS DEL PC
+    # Soporta múltiples formatos de comandos
     # -----------------------------
-    if cmd == "forward":
+    if cmd in ["forward", "run_forward"]:
         mover_adelante()
 
-    elif cmd == "backward":
+    elif cmd in ["backward", "run_backward"]:
         mover_atras()
 
     elif cmd == "stop":

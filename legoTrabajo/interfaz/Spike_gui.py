@@ -121,24 +121,19 @@ class SpikeGUI:
         
         def on_scan_complete(hubs):
             self.scan_btn.config(state="normal", text="Buscar Hubs")
-            if hubs:
+            print(f"[GUI] Resultado del escaneo: {hubs}")
+            if hubs and hubs[0][1] is not None:
                 self.hub_combo["values"] = [f"{n} ({a})" for n, a in hubs]
                 self.hub_combo.current(0)
                 self.hub_addresses = {f"{n} ({a})": a for n, a in hubs}
-                
-                lego_found = any(
-                    "LEGO" in n.upper() or "SPIKE" in n.upper() or "HUB" in n.upper()
-                    for n, _ in hubs
-                )
-                
-                if lego_found:
-                    messagebox.showinfo("Éxito", f"Se encontraron {len(hubs)} hub(s) LEGO")
-                else:
-                    messagebox.showinfo("Dispositivos encontrados",
-                        "No se detectó un hub LEGO por nombre.\nSelecciona uno manualmente.")
+                messagebox.showinfo("Éxito", f"Se encontraron {len(hubs)} dispositivo(s) BLE")
             else:
                 messagebox.showwarning("Sin resultados",
-                    "No se encontraron dispositivos Bluetooth.\nVerifica tu conexión.")
+                    "No se encontraron dispositivos BLE.\n"
+                    "Verifica que:\n"
+                    "1. El hub esté emparejado en Bluetooth del PC\n"
+                    "2. El Bluetooth esté activo\n"
+                    "3. Revisa la consola para más detalles")
         
         self.run_in_thread(self.controller.scan_hubs(), on_scan_complete)
     
