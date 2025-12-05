@@ -31,9 +31,15 @@ hub = PrimeHub()
 hub.light.on(Color.ORANGE) 
 
 motorA = None
+motor_izq = None
 
 try:
-    motorA = Motor(Port.A)
+    motorA = Motor(Port.A)  # Rueda derecha
+except Exception:
+    pass
+
+try:
+    motor_izq = Motor(Port.E)  # Rueda izquierda
 except Exception:
     pass
 
@@ -61,9 +67,12 @@ while True:
             if len(cmd) > 0:
                 action = cmd[0] # F, B, S
                 
-                if motorA:
+                if motorA or motor_izq:
                     if action == 'S':
-                        motorA.stop()
+                        if motorA:
+                            motorA.stop()
+                        if motor_izq:
+                            motor_izq.stop()
                         hub.light.on(Color.GREEN) # Verde (Standby)
                         
                     elif action == 'F' or action == 'B':
@@ -75,8 +84,12 @@ while True:
                             
                             if action == 'B':
                                 speed = -speed
-                                
-                            motorA.run(speed)
+                            
+                            # Ambos motores se mueven juntos
+                            if motorA:
+                                motorA.run(speed)
+                            if motor_izq:
+                                motor_izq.run(-speed)
                             hub.light.on(Color.BLUE) # Azul (Moviendo)
                         except ValueError:
                             pass
