@@ -13,7 +13,7 @@ from pybricksdev.connections.pybricks import PybricksHubBLE  # type: ignore
 ctk.set_appearance_mode("Dark")  # Modos: "System" (estándar), "Dark", "Light"
 ctk.set_default_color_theme("blue")  # Temas: "blue" (estándar), "green", "dark-blue"
 
-
+* * 
 # -------------------- PROGRAMA ENVIADO AL HUB (LÓGICA ACTUALIZADA) -------------------- 
 
 def create_program(drive_cmd: str, speed_pct: int) -> str:

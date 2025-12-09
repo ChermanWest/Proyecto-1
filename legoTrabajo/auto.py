@@ -22,15 +22,15 @@ def aplicar_giro():
     motor_dir.run_target(300, giro)
 
 def mover_adelante():
-    Motor_der.dc(velocidad)
+    motorA.dc(velocidad)
     motor_izq.dc(velocidad)
 
 def mover_atras():
-    Motor_der.dc(-velocidad)
+    motorA.dc(-velocidad)
     motor_izq.dc(-velocidad)
 
 def detener():
-    Motor_der.stop()
+    motorA.stop()
     motor_izq.stop()
 
 # ----------------------------------------
