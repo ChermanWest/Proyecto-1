@@ -1,3 +1,4 @@
+
 import asyncio
 import threading
 import tempfile
@@ -406,4 +407,3 @@ class LegoGUI(ctk.CTk):
 
 if __name__ == '__main__':
     app = LegoGUI()
-    app.mainloop()
