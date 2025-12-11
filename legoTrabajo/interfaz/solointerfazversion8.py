@@ -13,45 +13,97 @@ from pybricksdev.connections.pybricks import PybricksHubBLE  # type: ignore
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
 
+# -------------------- CÓDIGO DEL ROBOT (MODO SOCKET STREAM) -------------------- 
+# Esta versión implementa un lector de flujo continuo (Stream Reader).
+# Lee byte a byte sin bloquear, similar a un socket TCP/Serial.
 
-# -------------------- GENERADOR DE SCRIPTS (Estilo Clásico) -------------------- 
-# Generamos scripts pequeños para cada acción. Es lo más fiable.
-
-def create_program(drive_cmd: str, speed_pct: int) -> str:
-    # Convertimos slider (0-100) a velocidad real (0-1000)
-    speed_val = int(speed_pct * 10)
-    
-    # Lógica de movimiento
-    # Usamos un wait grande para que el motor siga girando indefinidamente
-    # hasta que nosotros lo interrumpamos con otro comando.
-    # CORRECCIÓN: Agregamos 4 espacios después del \n para mantener la indentación dentro del 'try'
-    if drive_cmd == 'run_forward':
-        code = f"motorA.run({speed_val})\n    wait(50000)"
-    elif drive_cmd == 'run_backward':
-        code = f"motorA.run({-speed_val})\n    wait(50000)"
-    else:
-        # Stop
-        code = "motorA.stop()"
-
-    program = f"""
+LISTENER_SCRIPT = """
 from pybricks.hubs import PrimeHub
 from pybricks.pupdevices import Motor
-from pybricks.parameters import Port
+from pybricks.parameters import Port, Color
 from pybricks.tools import wait
+import usys as sys
+import uselect
 
-# Inicializar
+# -- CONFIGURACIÓN --
 hub = PrimeHub()
-# Intentar conectar motor, si falla no pasa nada (evita crash del script)
+# Usamos Color.ORANGE en lugar de tupla para evitar errores de tipo
+hub.light.on(Color.ORANGE) 
+
+motorA = None
+motor_izq = None
+
 try:
-    motorA = Motor(Port.A)
-    {code}
-except:
+    motorA = Motor(Port.A)  # Rueda derecha
+except Exception:
     pass
+
+try:
+    motor_izq = Motor(Port.E)  # Rueda izquierda
+except Exception:
+    pass
+
+# -- LOOP TIPO SOCKET --
+# Usamos select para comprobar si hay datos sin detener el programa
+hub.light.on(Color.GREEN) # Verde = LISTO PARA RECIBIR
+
+buffer = ""
+
+while True:
+    # select([streams], [], [], timeout) comprueba si hay datos
+    # timeout=0 hace que sea NO bloqueante (instantáneo)
+    ready = uselect.select([sys.stdin], [], [], 0)[0]
+    
+    if ready:
+        # Leemos SOLO 1 carácter. Esto evita esperar buffers grandes.
+        char = sys.stdin.read(1)
+        
+        if char == ';':
+            # El punto y coma indica FIN DEL COMANDO (Delimiter)
+            # Procesamos el buffer acumulado
+            cmd = buffer.strip()
+            buffer = "" # Limpiar buffer
+            
+            if len(cmd) > 0:
+                action = cmd[0] # F, B, S
+                
+                if motorA or motor_izq:
+                    if action == 'S':
+                        if motorA:
+                            motorA.stop()
+                        if motor_izq:
+                            motor_izq.stop()
+                        hub.light.on(Color.GREEN) # Verde (Standby)
+                        
+                    elif action == 'F' or action == 'B':
+                        try:
+                            # Parsear velocidad (F800 -> 800)
+                            val_part = cmd[1:]
+                            if val_part == '': val_part = '0'
+                            speed = int(val_part)
+                            
+                            if action == 'B':
+                                speed = -speed
+                            
+                            # Ambos motores se mueven juntos
+                            if motorA:
+                                motorA.run(speed)
+                            if motor_izq:
+                                motor_izq.run(-speed)
+                            hub.light.on(Color.BLUE) # Azul (Moviendo)
+                        except ValueError:
+                            pass
+        else:
+            # Si no es el delimitador, lo guardamos y seguimos escuchando
+            if char != '\\n' and char != '\\r': # Ignorar saltos de línea basura
+                buffer += char
+            
+    # Pequeña pausa para no saturar la CPU del Hub, pero muy corta para latencia baja
+    wait(5)
 """
-    return program
 
 
-# -------------------- WORKER BLE (MODO INTERRUPCIÓN) -------------------- 
+# -------------------- WORKER BLE (MODO SOCKET) -------------------- 
 
 class BLEWorker:
     def __init__(self, log_queue: Queue):
@@ -72,6 +124,7 @@ class BLEWorker:
         self.loop.run_forever()
 
     async def _runner(self):
+        temp_path = None
         try:
             self.log("Buscando hub 'SP-7'...")
             device = await find_device("SP-7")
@@ -81,70 +134,54 @@ class BLEWorker:
 
             self.hub = PybricksHubBLE(device)
             await self.hub.connect()
-            self.log("Conectado. Listo.")
-            self.running.set()
+            self.log("Conectado. Estableciendo 'socket'...")
 
+            # 1. Cargar el Listener (Servidor)
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as tf:
+                tf.write(LISTENER_SCRIPT)
+                temp_path = tf.name
+
+            # Ejecutar sin esperar (wait=False)
+            await self.hub.run(temp_path, wait=False, print_output=True)
+            await asyncio.sleep(2) # Tiempo para que el hub inicie el script
+            
+            self.running.set()
+            self.log("¡Socket Abierto! Latencia cero.")
+
+            # 2. Loop de envío de paquetes
             while True:
-                # Esperar siguiente comando de la GUI
-                # cmd_data es una tupla: (comando, velocidad)
-                cmd_data = await self.queue.get()
-                cmd, speed = cmd_data
+                cmd_raw = await self.queue.get() 
                 
                 if self.hub and self.running.is_set():
-                    # PASO 1: INTERRUPCIÓN (Ctrl+C)
-                    # Enviamos el byte \x03 que significa "KeyboardInterrupt" en MicroPython.
-                    # Esto detiene cualquier script anterior (evita Protocol Error).
-                    try:
-                        await self.hub.write(b'\x03')
-                        # Pequeña pausa para dar tiempo al Hub a detenerse
-                        await asyncio.sleep(0.1)
-                    except Exception as e:
-                        print(f"Error enviando stop signal: {e}")
-
-                    # Si el comando era solo STOP, con el Ctrl+C ya basta (el script muere y motor para).
-                    # Pero si queremos frenar 'suave' o asegurarnos, podemos mandar script de stop.
-                    # Para optimizar: Si es STOP, ya paramos con Ctrl+C.
-                    # Si es MOVER, enviamos el script de movimiento.
+                    # PROTOCOLO: Comando + Delimitador ';'
+                    # El delimitador es crucial para que el socket sepa cuando termina la orden
+                    packet = f"{cmd_raw};" 
+                    payload = packet.encode('utf-8')
                     
-                    if cmd != 'stop':
-                        # PASO 2: ENVIAR NUEVO SCRIPT
-                        program_code = create_program(cmd, speed)
-                        await self._run_script(program_code)
-                        print(f"[BLE] Ejecutando {cmd} ({speed}%)")
-                    else:
-                        print("[BLE] Stop forzado (Ctrl+C)")
+                    try:
+                        await self.hub.write(payload)
+                        # print(f"TX -> {packet}") 
+                    except Exception as e:
+                        self.log(f"Error TX: {e}")
 
         except asyncio.CancelledError:
             pass
         except Exception as e:
-            self.log(f"Error conexión: {e}")
-        finally:
-            if self.hub:
-                try:
-                    await self.hub.disconnect()
-                except:
-                    pass
-            self.running.clear()
-            self.log("Desconectado.")
-
-    async def _run_script(self, code):
-        """Ayuda para crear archivo temporal y ejecutarlo"""
-        temp_path = None
-        try:
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as tf:
-                tf.write(code)
-                temp_path = tf.name
-            
-            # wait=False es clave: lanzamos el script y no bloqueamos Python
-            await self.hub.run(temp_path, wait=False, print_output=False)
-        except Exception as e:
-            self.log(f"Error run: {e}")
+            self.log(f"Error fatal: {e}")
         finally:
             if temp_path:
                 try:
                     os.unlink(temp_path)
                 except:
                     pass
+            if self.hub:
+                try:
+                    await self.hub.write(b'S;') # Intentar frenar al salir
+                    await self.hub.disconnect()
+                except:
+                    pass
+            self.running.clear()
+            self.log("Socket cerrado.")
 
     def start(self):
         if not self.thread.is_alive():
@@ -156,18 +193,18 @@ class BLEWorker:
                 task.cancel()
             self.loop.call_soon_threadsafe(self.loop.stop)
 
-    def send_command(self, cmd: str, speed: int):
+    def send_packet(self, text_cmd: str):
         if self.loop.is_running():
-            self.loop.call_soon_threadsafe(self.queue.put_nowait, (cmd, speed))
+            self.loop.call_soon_threadsafe(self.queue.put_nowait, text_cmd)
 
 
-# -------------------- GUI (HÍBRIDA) -------------------- 
+# -------------------- GUI (CONTROL HÍBRIDO) -------------------- 
 
 class LegoGUI(ctk.CTk):
     def __init__(self):
         super().__init__()
         
-        self.title("Control LEGO Spike Prime")
+        self.title("Control LEGO Spike Prime - Socket Stream")
         self.geometry("500x650")
         self.resizable(False, False)
 
@@ -176,7 +213,7 @@ class LegoGUI(ctk.CTk):
         
         # Colores
         self.color_green = "#2EA043"
-        self.color_red = "#D83432"
+        self.color_red = "#DA3633"
         self.color_blue = "#1F6FEB"
         self.color_gray = "#30363D"
         self.color_yellow = "#D29922"
@@ -210,7 +247,7 @@ class LegoGUI(ctk.CTk):
                                          command=self.toggle_connection)
         self.btn_connect.pack(side="left")
 
-        # PANEL D-PAD (Botones TK normales para fiabilidad)
+        # PANEL D-PAD (Botones TK normales)
         self.main_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.main_frame.pack(expand=True, fill="both", padx=20, pady=10)
         
@@ -229,8 +266,10 @@ class LegoGUI(ctk.CTk):
         self.btn_up = tk.Button(dpad_container, text="▲\nAdelante", bg=self.color_green, 
                                 activebackground="#268c3b", width=14, height=4, **btn_style)
         self.btn_up.grid(row=0, column=1, pady=10)
-        self.btn_up.bind("<ButtonPress-1>", lambda e: self.cmd_action("run_forward"))
-        self.btn_up.bind("<ButtonRelease-1>", lambda e: self.cmd_action("stop"))
+        
+        # Eventos
+        self.btn_up.bind("<ButtonPress-1>", lambda e: self.cmd_move("F"))
+        self.btn_up.bind("<ButtonRelease-1>", lambda e: self.cmd_stop())
 
         # IZQUIERDA
         self.btn_left = tk.Button(dpad_container, text="◀", bg=self.color_blue,
@@ -241,7 +280,7 @@ class LegoGUI(ctk.CTk):
         self.btn_stop = tk.Button(dpad_container, text="STOP", bg=self.color_red,
                                   activebackground="#b02a28", width=10, height=4, **btn_style)
         self.btn_stop.grid(row=1, column=1, padx=5)
-        self.btn_stop.config(command=lambda: self.cmd_action("stop"))
+        self.btn_stop.config(command=self.cmd_stop)
 
         # DERECHA
         self.btn_right = tk.Button(dpad_container, text="▶", bg=self.color_blue,
@@ -252,8 +291,8 @@ class LegoGUI(ctk.CTk):
         self.btn_down = tk.Button(dpad_container, text="▼\nAtrás", bg="#3b8ed0",
                                   activebackground="#2a6da3", width=14, height=4, **btn_style)
         self.btn_down.grid(row=2, column=1, pady=10)
-        self.btn_down.bind("<ButtonPress-1>", lambda e: self.cmd_action("run_backward"))
-        self.btn_down.bind("<ButtonRelease-1>", lambda e: self.cmd_action("stop"))
+        self.btn_down.bind("<ButtonPress-1>", lambda e: self.cmd_move("B"))
+        self.btn_down.bind("<ButtonRelease-1>", lambda e: self.cmd_stop())
 
         # Footer
         self.bottom_frame = ctk.CTkFrame(self)
@@ -275,21 +314,36 @@ class LegoGUI(ctk.CTk):
                                             fg_color="transparent", border_color=self.color_red, border_width=2,
                                             text_color=self.color_red, hover_color=self.color_red,
                                             height=45, font=ctk.CTkFont(weight="bold"),
-                                            command=lambda: self.cmd_action("stop"))
+                                            command=self.cmd_stop)
         self.btn_emergencia.pack(fill="x", padx=20, pady=15)
 
         self.status_bar = ctk.CTkLabel(self, text="Listo.", anchor="w", padx=10, 
                                        font=ctk.CTkFont(size=11), text_color="gray")
         self.status_bar.pack(side="bottom", fill="x")
 
-    def cmd_action(self, action_cmd):
+    # -------- COMANDOS --------
+
+    def cmd_move(self, direction):
+        # direction: 'F' o 'B'
         pct = self.slider.get()
-        print(f"[UI] Accion: {action_cmd} | Speed: {int(pct)}%")
+        speed = int(pct * 10)
+        cmd = f"{direction}{speed}"
+        
+        print(f"[UI] Move: {cmd}")
         
         if self.worker.running.is_set():
-            self.worker.send_command(action_cmd, int(pct))
+            self.worker.send_packet(cmd)
         else:
-            self._log(f"[Offline] {action_cmd}")
+            self._log(f"[Offline] {cmd}")
+
+    def cmd_stop(self, event=None):
+        print(f"[UI] Stop")
+        if self.worker.running.is_set():
+            self.worker.send_packet("S")
+        else:
+            self._log("[Offline] Stop")
+
+    # -------- CONEXIÓN --------
 
     def toggle_connection(self):
         if self.btn_connect.cget("text") == "Conectar":
@@ -308,7 +362,7 @@ class LegoGUI(ctk.CTk):
                 self.lbl_status.configure(text="Conectado", text_color=self.color_green)
                 self.status_indicator.configure(fg_color=self.color_green)
                 self.btn_connect.configure(text="Desconectar", state="normal", fg_color=self.color_red)
-                self._log("Sistema listo.")
+                self._log("¡Sistema Socket Listo!")
             else:
                 self.after(200, wait_ready)
         wait_ready()
