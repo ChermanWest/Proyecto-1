@@ -17,4 +17,4 @@ mmotor A y E avanzaran hacia adelante
 cuando atras es presionado
 mmotor A y E avanzaran hacia atras
 
-
+el proyecto cuenta con dos partes del codigo, uno es el programa qued debe ser cargado en el codigo del spike prime, el cual es el archivo "auto.py", y el otro es el codigo del de la interfaz, el cual debe ser cargado a traves de su ejecutable para cargar el programa que de la interfaz grafica.
