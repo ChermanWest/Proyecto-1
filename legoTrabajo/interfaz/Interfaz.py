@@ -24,6 +24,13 @@ class LegoGUI(ctk.CTk):
         self.color_yellow = "#D29922"
 
         self._build_ui()
+
+        # Habilitar control por teclado (W A S D)
+        # Usamos bind_all para asegurarnos de capturar teclas aunque un widget tenga foco
+        self.bind_all("<KeyPress>", self._on_key_press)
+        self.bind_all("<KeyRelease>", self._on_key_release)
+        self.focus_set()
+
         self._poll_logs()
 
     def _build_ui(self):
@@ -142,6 +149,30 @@ class LegoGUI(ctk.CTk):
     def cmd_stop_traction(self, event=None):
         if self.worker.running.is_set():
             self.worker.send_packet("S")
+
+    def _on_key_press(self, event):
+        try:
+            key = getattr(event, "keysym", "").lower()
+            if key == "w":
+                self.cmd_move("F")
+            elif key == "s":
+                self.cmd_move("B")
+            elif key == "a":
+                self.cmd_steer("L")
+            elif key == "d":
+                self.cmd_steer("R")
+        except Exception:
+            pass
+
+    def _on_key_release(self, event):
+        try:
+            key = getattr(event, "keysym", "").lower()
+            if key in ("w", "s"):
+                self.cmd_stop_traction()
+            elif key in ("a", "d"):
+                self.cmd_steer("Z")
+        except Exception:
+            pass
 
     def cmd_emergency_stop(self):
         if self.worker.running.is_set():
