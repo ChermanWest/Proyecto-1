@@ -9,7 +9,7 @@ class LegoGUI(ctk.CTk):
     def __init__(self):
         super().__init__()
         
-        self.title("Control LEGO Spike Prime - Con Dirección")
+        self.title("Control LEGO Spike Prime - SP 7")
         self.geometry("500x650")
         self.resizable(False, False)
 
@@ -102,12 +102,19 @@ class LegoGUI(ctk.CTk):
         self.btn_right.bind("<ButtonRelease-1>", lambda e: self.cmd_steer("Z"))
 
         # ATRAS
-        self.btn_down = tk.Button(dpad_container, text="▼\nAtrás", bg="#3b8ed0",
-                                  activebackground="#2a6da3", width=14, height=4, **btn_style)
+        self.btn_down = tk.Button(dpad_container, text="▼\nAtrás", bg=self.color_yellow,
+                                  activebackground="#71751f", width=14, height=4, **btn_style)
         self.btn_down.grid(row=2, column=1, pady=10)
         self.btn_down.bind("<ButtonPress-1>", lambda e: self.cmd_move("B"))
         self.btn_down.bind("<ButtonRelease-1>", lambda e: self.cmd_stop_traction())
-
+        # Guardar colores originales para animación por teclado
+        self._orig_btn_colors = {
+            'up': self.btn_up.cget('bg'),
+            'left': self.btn_left.cget('bg'),
+            'right': self.btn_right.cget('bg'),
+            'down': self.btn_down.cget('bg'),
+            'stop': self.btn_stop.cget('bg')
+        }
         # Footer
         self.bottom_frame = ctk.CTkFrame(self)
         self.bottom_frame.pack(fill="x", padx=20, pady=20)
@@ -131,7 +138,7 @@ class LegoGUI(ctk.CTk):
                                             command=self.cmd_emergency_stop)
         self.btn_emergencia.pack(fill="x", padx=20, pady=15)
 
-        self.status_bar = ctk.CTkLabel(self, text="Listo.", anchor="w", padx=10, 
+        self.status_bar = ctk.CTkLabel(self, text="", anchor="w", padx=10, 
                                      font=ctk.CTkFont(size=11), text_color="gray")
         self.status_bar.pack(side="bottom", fill="x")
 
@@ -155,12 +162,21 @@ class LegoGUI(ctk.CTk):
             key = getattr(event, "keysym", "").lower()
             if key == "w":
                 self.cmd_move("F")
+                # animación: simular botón presionado
+                try: self.btn_up.configure(bg=self.btn_up.cget('activebackground'), relief='sunken')
+                except: pass
             elif key == "s":
                 self.cmd_move("B")
+                try: self.btn_down.configure(bg=self.btn_down.cget('activebackground'), relief='sunken')
+                except: pass
             elif key == "a":
                 self.cmd_steer("L")
+                try: self.btn_left.configure(bg=self.btn_left.cget('activebackground'), relief='sunken')
+                except: pass
             elif key == "d":
                 self.cmd_steer("R")
+                try: self.btn_right.configure(bg=self.btn_right.cget('activebackground'), relief='sunken')
+                except: pass
         except Exception:
             pass
 
@@ -169,8 +185,21 @@ class LegoGUI(ctk.CTk):
             key = getattr(event, "keysym", "").lower()
             if key in ("w", "s"):
                 self.cmd_stop_traction()
+                # restaurar color y relieve
+                try:
+                    if key == 'w':
+                        self.btn_up.configure(bg=self._orig_btn_colors['up'], relief='flat')
+                    else:
+                        self.btn_down.configure(bg=self._orig_btn_colors['down'], relief='flat')
+                except: pass
             elif key in ("a", "d"):
                 self.cmd_steer("Z")
+                try:
+                    if key == 'a':
+                        self.btn_left.configure(bg=self._orig_btn_colors['left'], relief='flat')
+                    else:
+                        self.btn_right.configure(bg=self._orig_btn_colors['right'], relief='flat')
+                except: pass
         except Exception:
             pass
 
