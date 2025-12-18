@@ -3,12 +3,16 @@ from PyInstaller.utils.hooks import collect_all
 
 datas = []
 binaries = []
-hiddenimports = ['bleak.backends.winrt', 'winsdk.windows.devices.bluetooth', 'winsdk.windows.devices.bluetooth.genericattributeprofile', 'customtkinter', 'asyncio', 'Conexion', 'ControlMotores', 'Interfaz']
+hiddenimports = ['bleak.backends.winrt', 'winsdk.windows.devices.bluetooth', 'winsdk.windows.devices.bluetooth.genericattributeprofile', 'customtkinter', 'asyncio', 'Conexion', 'ControlMotores', 'Interfaz', 'mpy_cross_v6', 'mpy_cross_v5']
 tmp_ret = collect_all('bleak')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('pybricksdev')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('winsdk')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('mpy_cross_v6')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('mpy_cross_v5')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 
