@@ -77,9 +77,9 @@ while True:
                     if motor_dir:
                         try:
                             if action == 'L':
-                                motor_dir.run_target(800, -100, wait=False)
+                                motor_dir.run_target(800, -30, wait=False)
                             elif action == 'R':
-                                motor_dir.run_target(800, 100, wait=False)
+                                motor_dir.run_target(800, 30, wait=False)
                             elif action == 'Z':
                                 motor_dir.run_target(800, 0, wait=False)
                         except Exception:

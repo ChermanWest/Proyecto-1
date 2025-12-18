@@ -1,48 +1,47 @@
-#!/usr/bin/env python
-
-
 import subprocess
 import sys
 import os
 import shutil
 
-# Asegurarse de que PyInstaller está instalado
-try:
-    import PyInstaller
-except ImportError:
-    print("PyInstaller no está instalado. Instalando...")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "pyinstaller"])
-
-# Directorio del script
+# --- Configuración Inicial ---
 script_dir = os.path.dirname(os.path.abspath(__file__))
 main_py = os.path.join(script_dir, "Main.py")
 dist_dir = os.path.join(script_dir, "dist")
+work_dir = os.path.join(script_dir, "build")
 
-# Limpiar directorios anteriores
-for folder in ["build", "dist", ".spec"]:
-    folder_path = os.path.join(script_dir, folder)
-    if os.path.exists(folder_path):
-        shutil.rmtree(folder_path)
-        print(f"Eliminado: {folder}")
+# --- 1. Limpieza ---
+for folder in [dist_dir, work_dir]:
+    if os.path.exists(folder):
+        shutil.rmtree(folder)
+        print(f"Limpiado: {folder}")
 
-# Comando PyInstaller simplificado
+# --- 2. Comando PyInstaller CORREGIDO ---
 cmd = [
     sys.executable, "-m", "PyInstaller",
-    "--onefile",                                      # Un único ejecutable
-    "--windowed",                                     # Sin consola (GUI puro)
-    "--name", "ControlLego",                          # Nombre del ejecutable
-    "--distpath", dist_dir,                           # Solo carpeta dist para el .exe
+    "--noconfirm",
+    "--onefile",
+    "--clean",
+    "--console", # Mantenlo en console para ver errores si fallara
+    "--name", "ControlLego",
+    "--distpath", dist_dir,
+    "--workpath", work_dir,
+    
+    # === AQUÍ ESTABA EL ERROR ===
+    # Usamos el signo '=' para asegurar que no haya espacios sueltos
+    "--collect-all=bleak",
+    "--collect-all=pybricksdev",
+    "--collect-all=winsdk",
+    
+    # Importaciones ocultas
+    "--hidden-import=bleak.backends.winrt",
+    "--hidden-import=winsdk.windows.devices.bluetooth",
+    "--hidden-import=winsdk.windows.devices.bluetooth.genericattributeprofile",
     "--hidden-import=customtkinter",
+    "--hidden-import=asyncio",
     "--hidden-import=Conexion",
     "--hidden-import=ControlMotores",
     "--hidden-import=Interfaz",
-    "--hidden-import=pybricksdev",
-    "--hidden-import=pybricksdev.ble",
-    "--hidden-import=pybricksdev.connections",
-    "--hidden-import=pybricksdev.connections.pybricks",
-    "--hidden-import=bleak",
-    "--hidden-import=asyncio",
-    "--collect-all=pybricksdev",
+    
     main_py
 ]
 
@@ -50,23 +49,7 @@ print(f"Compilando {main_py}...\n")
 
 try:
     subprocess.run(cmd, check=True)
-    
-    # Limpiar archivos temporales de PyInstaller
-    spec_file = os.path.join(script_dir, "ControlLego.spec")
-    if os.path.exists(spec_file):
-        os.remove(spec_file)
-        print("Eliminado: ControlLego.spec")
-    
-    build_dir = os.path.join(script_dir, "build")
-    if os.path.exists(build_dir):
-        shutil.rmtree(build_dir)
-        print("Eliminado: carpeta build/")
-    
-    exe_path = os.path.join(dist_dir, "ControlLego.exe")
     print(f"\n✓ ¡Compilación exitosa!")
-    print(f"Ejecutable: {exe_path}")
-    print(f"Tamaño aproximado: {os.path.getsize(exe_path) / (1024**2):.1f} MB")
-    
+    print(f"Ejecutable en: {os.path.join(dist_dir, 'ControlLego.exe')}")
 except subprocess.CalledProcessError as e:
-    print(f"\n✗ Error durante la compilación: {e}")
-    sys.exit(1)
+    print(f"\n✗ Error: {e}")

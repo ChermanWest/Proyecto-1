@@ -4,6 +4,7 @@ import asyncio
 import threading
 import tempfile
 import os
+import traceback
 from queue import Queue
 from pybricksdev.ble import find_device  # type: ignore
 from pybricksdev.connections.pybricks import PybricksHubBLE  # type: ignore
@@ -44,7 +45,11 @@ class BLEWorker:
 
             with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as tf:
                 tf.write(LISTENER_SCRIPT)
+                tf.flush()
                 temp_path = tf.name
+
+            # Log the temp script path and check existence to help diagnose WinError 2
+            self.log(f"Temp script path: {temp_path} (exists: {os.path.exists(temp_path)})")
 
             await self.hub.run(temp_path, wait=False, print_output=True)
             await asyncio.sleep(2) 
@@ -67,7 +72,9 @@ class BLEWorker:
         except asyncio.CancelledError:
             pass
         except Exception as e:
-            self.log(f"Error fatal: {e}")
+            # Log full traceback to help identify where the error originated (WinError 2: file not found)
+            tb = traceback.format_exc()
+            self.log(f"Error fatal: {e} ({type(e).__name__})\n{tb}")
         finally:
             if temp_path:
                 try: os.unlink(temp_path)

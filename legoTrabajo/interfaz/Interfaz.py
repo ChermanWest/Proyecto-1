@@ -16,6 +16,10 @@ class LegoGUI(ctk.CTk):
         self.log_queue = Queue()
         self.worker = BLEWorker(self.log_queue)
         
+        # --- RASTREADOR DE ESTADO PARA EVITAR DELAY ---
+        # Esto guarda si una tecla ya está siendo presionada
+        self.pressed_keys = {"w": False, "a": False, "s": False, "d": False}
+        
         # Colores
         self.color_green = "#2EA043"
         self.color_red = "#DA3633"
@@ -26,7 +30,6 @@ class LegoGUI(ctk.CTk):
         self._build_ui()
 
         # Habilitar control por teclado (W A S D)
-        # Usamos bind_all para asegurarnos de capturar teclas aunque un widget tenga foco
         self.bind_all("<KeyPress>", self._on_key_press)
         self.bind_all("<KeyRelease>", self._on_key_release)
         self.focus_set()
@@ -51,7 +54,7 @@ class LegoGUI(ctk.CTk):
         self.status_indicator.pack(side="left", padx=(0, 10))
 
         self.lbl_status = ctk.CTkLabel(right_header, text="Sin conexión", 
-                                     text_color="gray", font=ctk.CTkFont(size=12))
+                                      text_color="gray", font=ctk.CTkFont(size=12))
         self.lbl_status.pack(side="left", padx=(0, 10))
 
         self.btn_connect = ctk.CTkButton(right_header, text="Conectar", width=90,
@@ -107,14 +110,14 @@ class LegoGUI(ctk.CTk):
         self.btn_down.grid(row=2, column=1, pady=10)
         self.btn_down.bind("<ButtonPress-1>", lambda e: self.cmd_move("B"))
         self.btn_down.bind("<ButtonRelease-1>", lambda e: self.cmd_stop_traction())
-        # Guardar colores originales para animación por teclado
+        
         self._orig_btn_colors = {
             'up': self.btn_up.cget('bg'),
             'left': self.btn_left.cget('bg'),
             'right': self.btn_right.cget('bg'),
-            'down': self.btn_down.cget('bg'),
-            'stop': self.btn_stop.cget('bg')
+            'down': self.btn_down.cget('bg')
         }
+
         # Footer
         self.bottom_frame = ctk.CTkFrame(self)
         self.bottom_frame.pack(fill="x", padx=20, pady=20)
@@ -157,49 +160,54 @@ class LegoGUI(ctk.CTk):
         if self.worker.running.is_set():
             self.worker.send_packet("S")
 
+    # --- TECLADO OPTIMIZADO PARA EVITAR LAG ---
     def _on_key_press(self, event):
         try:
             key = getattr(event, "keysym", "").lower()
+            
+            # BLOQUEO: Si la tecla ya está marcada como presionada, ignoramos el evento repetido
+            if key in self.pressed_keys and self.pressed_keys[key]:
+                return
+            
+            # Registrar que la tecla se acaba de presionar
+            if key in self.pressed_keys:
+                self.pressed_keys[key] = True
+
             if key == "w":
                 self.cmd_move("F")
-                # animación: simular botón presionado
-                try: self.btn_up.configure(bg=self.btn_up.cget('activebackground'), relief='sunken')
-                except: pass
+                self.btn_up.configure(bg=self.btn_up.cget('activebackground'), relief='sunken')
             elif key == "s":
                 self.cmd_move("B")
-                try: self.btn_down.configure(bg=self.btn_down.cget('activebackground'), relief='sunken')
-                except: pass
+                self.btn_down.configure(bg=self.btn_down.cget('activebackground'), relief='sunken')
             elif key == "a":
                 self.cmd_steer("L")
-                try: self.btn_left.configure(bg=self.btn_left.cget('activebackground'), relief='sunken')
-                except: pass
+                self.btn_left.configure(bg=self.btn_left.cget('activebackground'), relief='sunken')
             elif key == "d":
                 self.cmd_steer("R")
-                try: self.btn_right.configure(bg=self.btn_right.cget('activebackground'), relief='sunken')
-                except: pass
+                self.btn_right.configure(bg=self.btn_right.cget('activebackground'), relief='sunken')
         except Exception:
             pass
 
     def _on_key_release(self, event):
         try:
             key = getattr(event, "keysym", "").lower()
+            
+            # LIBERAR BLOQUEO: Permitir que se vuelva a detectar la pulsación más adelante
+            if key in self.pressed_keys:
+                self.pressed_keys[key] = False
+
             if key in ("w", "s"):
                 self.cmd_stop_traction()
-                # restaurar color y relieve
-                try:
-                    if key == 'w':
-                        self.btn_up.configure(bg=self._orig_btn_colors['up'], relief='flat')
-                    else:
-                        self.btn_down.configure(bg=self._orig_btn_colors['down'], relief='flat')
-                except: pass
+                if key == 'w':
+                    self.btn_up.configure(bg=self._orig_btn_colors['up'], relief='flat')
+                else:
+                    self.btn_down.configure(bg=self._orig_btn_colors['down'], relief='flat')
             elif key in ("a", "d"):
                 self.cmd_steer("Z")
-                try:
-                    if key == 'a':
-                        self.btn_left.configure(bg=self._orig_btn_colors['left'], relief='flat')
-                    else:
-                        self.btn_right.configure(bg=self._orig_btn_colors['right'], relief='flat')
-                except: pass
+                if key == 'a':
+                    self.btn_left.configure(bg=self._orig_btn_colors['left'], relief='flat')
+                else:
+                    self.btn_right.configure(bg=self._orig_btn_colors['right'], relief='flat')
         except Exception:
             pass
 
@@ -225,7 +233,7 @@ class LegoGUI(ctk.CTk):
                 self.lbl_status.configure(text="Conectado", text_color=self.color_green)
                 self.status_indicator.configure(fg_color=self.color_green)
                 self.btn_connect.configure(text="Desconectar", state="normal", fg_color=self.color_red)
-                self._log("¡Sistema Listo! Ruedas centradas.")
+                self._log("¡Sistema Listo!")
             else:
                 self.after(200, wait_ready)
         wait_ready()
