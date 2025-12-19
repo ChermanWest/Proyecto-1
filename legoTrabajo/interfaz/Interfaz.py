@@ -15,6 +15,7 @@ class LegoGUI(ctk.CTk):
 
         self.log_queue = Queue()
         self.worker = BLEWorker(self.log_queue)
+        self.emergency = False
         
         # --- RASTREADOR DE ESTADO PARA EVITAR DELAY ---
         # Esto guarda si una tecla ya está siendo presionada
@@ -145,8 +146,22 @@ class LegoGUI(ctk.CTk):
                                      font=ctk.CTkFont(size=11), text_color="gray")
         self.status_bar.pack(side="bottom", fill="x")
 
+    def _set_controls_enabled(self, enabled: bool):
+        state = "normal" if enabled else "disabled"
+        try:
+            # Tk buttons
+            for btn in (self.btn_up, self.btn_down, self.btn_left, self.btn_right, self.btn_stop):
+                btn.configure(state=state)
+            # CTk widgets
+            try:
+                self.slider.configure(state=state)
+            except:
+                pass
+        except:
+            pass
+
     def cmd_steer(self, action):
-        if self.worker.running.is_set():
+        if self.worker.running.is_set() and not self.emergency:
             self.worker.send_packet(action)
 
     def cmd_move(self, direction):
@@ -160,9 +175,11 @@ class LegoGUI(ctk.CTk):
         if self.worker.running.is_set():
             self.worker.send_packet("S")
 
-    # --- TECLADO OPTIMIZADO PARA EVITAR LAG ---
+    # TECLADO OPTIMIZADO PARA EVITAR LAG
     def _on_key_press(self, event):
         try:
+            if self.emergency:
+                return
             key = getattr(event, "keysym", "").lower()
             
             # BLOQUEO: Si la tecla ya está marcada como presionada, ignoramos el evento repetido
@@ -190,6 +207,9 @@ class LegoGUI(ctk.CTk):
 
     def _on_key_release(self, event):
         try:
+            if self.emergency:
+                for k in self.pressed_keys: self.pressed_keys[k] = False
+                return
             key = getattr(event, "keysym", "").lower()
             
             # LIBERAR BLOQUEO: Permitir que se vuelva a detectar la pulsación más adelante
@@ -212,9 +232,34 @@ class LegoGUI(ctk.CTk):
             pass
 
     def cmd_emergency_stop(self):
-        if self.worker.running.is_set():
-            self.worker.send_packet("S")
-            self.worker.send_packet("Z")
+        # Activate emergency stop state
+        self.emergency = True
+        # Send immediate stop commands if connected
+        try:
+            if self.worker.running.is_set():
+                self.worker.send_packet("S")
+                self.worker.send_packet("Z")
+                # stop BLE worker to prevent further commands
+                self.worker.stop()
+        except:
+            pass
+        # Disable controls
+        try:
+            self._set_controls_enabled(False)
+        except:
+            pass
+        # Clear pressed keys to avoid stuck inputs
+        for k in self.pressed_keys:
+            self.pressed_keys[k] = False
+        # Update UI to reflect emergency state
+        try:
+            self.lbl_status.configure(text="PARADA DE EMERGENCIA", text_color=self.color_red)
+            self.status_indicator.configure(fg_color=self.color_red)
+            self.status_bar.configure(text="¡PARADA DE EMERGENCIA activada!")
+            # Ensure connect button shows 'Conectar' and is enabled so user can reconnect when ready
+            self.btn_connect.configure(text="Conectar", fg_color=self.color_gray, state="normal")
+        except:
+            pass
 
     def toggle_connection(self):
         if self.btn_connect.cget("text") == "Conectar":
@@ -233,6 +278,12 @@ class LegoGUI(ctk.CTk):
                 self.lbl_status.configure(text="Conectado", text_color=self.color_green)
                 self.status_indicator.configure(fg_color=self.color_green)
                 self.btn_connect.configure(text="Desconectar", state="normal", fg_color=self.color_red)
+                # Clear emergency state and re-enable controls
+                self.emergency = False
+                try:
+                    self._set_controls_enabled(True)
+                except:
+                    pass
                 self._log("¡Sistema Listo!")
             else:
                 self.after(200, wait_ready)
