@@ -14,7 +14,7 @@ motor_izq = Motor(Port.E)   # Rueda izquierda
 motor_dir = Motor(Port.C)   # Dirección
 
 # Variables iniciales
-velocidad = 50
+velocidad = 0
 giro = 0
 
 def aplicar_giro():
