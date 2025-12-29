@@ -1,6 +1,11 @@
 # ControlMotores.py
+\n+# Rol arquitectura: SERVIDOR (Hub LEGO) — este archivo define el script
+# que se carga desde el PC y se ejecuta dentro del hub. Actúa como
+# "servidor" porque recibe (por stdin vía BLE) los comandos del cliente y
+# controla los motores.
 
 LISTENER_SCRIPT = """
+# Servidor en el Hub: escucha stdin (BLE) y acciona motores
 from pybricks.hubs import PrimeHub
 from pybricks.pupdevices import Motor
 from pybricks.parameters import Port, Color
@@ -31,7 +36,7 @@ try:
     motor_dir.reset_angle(0)
 except Exception: pass
 
-# -- LOOP TIPO SOCKET --
+
 hub.light.on(Color.GREEN) # Verde = LISTO
 
 buffer = ""

@@ -1,3 +1,10 @@
+"""
+auto.py
+Rol arquitectura: SERVIDOR (Hub LEGO) — script alternativo para ejecutarse
+directamente en el hub (sin la GUI). Actúa como servidor: lee stdin (lo que
+llega por BLE/USB) y controla los motores.
+"""
+
 from pybricks.hubs import PrimeHub
 from pybricks.pupdevices import Motor
 from pybricks.parameters import Port
@@ -58,26 +65,6 @@ while True:
         wait(10)
         continue
     cmd = cmd.strip()
-
-    # -----------------------------
-    # COMANDOS DEL PC
-    # Soporta múltiples formatos de comandos
-    # -----------------------------
-    if cmd in ["forward", "run_forward"]:
-        mover_adelante()
-
-    elif cmd in ["backward", "run_backward"]:
-        mover_atras()
-
-    elif cmd == "stop":
-        detener()
-
-    elif cmd.startswith("velocidad:"):
-        velocidad = int(cmd.split(":")[1])
-
-    elif cmd.startswith("giro:"):
-        giro = int(cmd.split(":")[1])
-        aplicar_giro()
 
     # Confirma recepción al PC
     enviar_ready()

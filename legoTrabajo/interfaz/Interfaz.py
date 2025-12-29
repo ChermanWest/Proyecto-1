@@ -156,11 +156,14 @@ class LegoGUI(ctk.CTk):
             try:
                 self.slider.configure(state=state)
             except:
+            # Rol arquitectura: CLIENTE (PC) — GUI/control. Genera comandos (WASD, botones)
+            # y los envía al servidor en el hub vía BLE (Conexion.BLEWorker).
                 pass
         except:
             pass
 
     def cmd_steer(self, action):
+            # CLIENTE: capa de presentación + generación de comandos
         if self.worker.running.is_set() and not self.emergency:
             self.worker.send_packet(action)
 
@@ -170,7 +173,8 @@ class LegoGUI(ctk.CTk):
         cmd = f"{direction}{speed}"
         if self.worker.running.is_set():
             self.worker.send_packet(cmd)
-
+                    # Transporte cliente→servidor (BLE): canal para enviar comandos al hub
+                    self.worker = BLEWorker(self.log_queue)
     def cmd_stop_traction(self, event=None):
         if self.worker.running.is_set():
             self.worker.send_packet("S")

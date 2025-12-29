@@ -1,4 +1,6 @@
 # conexion.py
+# Rol arquitectura: CLIENTE (PC) — capa de transporte BLE. Conecta al hub,
+# carga el "servidor" (script del hub) y envía comandos desde la GUI.
 
 import asyncio
 import threading
@@ -10,8 +12,9 @@ from pybricksdev.ble import find_device  # type: ignore
 from pybricksdev.connections.pybricks import PybricksHubBLE  # type: ignore
 
 # Importamos el script del robot del otro archivo
-from ControlMotores import LISTENER_SCRIPT
+from ControlMotores import LISTENER_SCRIPT  # payload del servidor a cargar en el hub
 
+# CLIENTE (PC): worker BLE asíncrono, puente cliente→servidor
 class BLEWorker:
     def __init__(self, log_queue: Queue):
         self.loop = asyncio.new_event_loop()
