@@ -1,6 +1,4 @@
 # conexion.py
-# Rol arquitectura: CLIENTE (PC) — capa de transporte BLE. Conecta al hub,
-# carga el "servidor" (script del hub) y envía comandos desde la GUI.
 
 import asyncio
 import threading
@@ -14,7 +12,7 @@ from pybricksdev.connections.pybricks import PybricksHubBLE  # type: ignore
 # Importamos el script del robot del otro archivo
 from ControlMotores import LISTENER_SCRIPT  # payload del servidor a cargar en el hub
 
-# CLIENTE (PC): worker BLE asíncrono, puente cliente→servidor
+# worker BLE asíncrono, puente cliente→servidor
 class BLEWorker:
     def __init__(self, log_queue: Queue):
         self.loop = asyncio.new_event_loop()
@@ -75,7 +73,7 @@ class BLEWorker:
         except asyncio.CancelledError:
             pass
         except Exception as e:
-            # Log full traceback to help identify where the error originated (WinError 2: file not found)
+        
             tb = traceback.format_exc()
             self.log(f"Error fatal: {e} ({type(e).__name__})\n{tb}")
         finally:
@@ -88,7 +86,7 @@ class BLEWorker:
                     await self.hub.disconnect()
                 except: pass
             self.running.clear()
-            self.log("Socket cerrado.")
+            self.log("Sistema cerrado.")
 
     def start(self):
         if not self.thread.is_alive():

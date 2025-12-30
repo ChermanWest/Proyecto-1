@@ -17,13 +17,13 @@ import uselect
 hub = PrimeHub()
 hub.light.on(Color.ORANGE) 
 
-motorA = None
+motor_der = None
 motor_izq = None
 motor_dir = None # Motor de dirección (Puerto C)
 
 # Inicialización de motores de tracción
 try:
-    motorA = Motor(Port.A)  # Rueda derecha
+    motor_der = Motor(Port.A)  # Rueda derecha
 except Exception: pass
 
 try:
@@ -58,7 +58,7 @@ while True:
                 
                 # --- LÓGICA DE TRACCIÓN (F=Forward, B=Back, S=Stop) ---
                 if action == 'S':
-                    if motorA: motorA.stop()
+                    if motor_der: motor_der.stop()
                     if motor_izq: motor_izq.stop()
                     hub.light.on(Color.GREEN)
                     
@@ -71,7 +71,7 @@ while True:
                         if action == 'B':
                             speed = -speed
                         
-                        if motorA: motorA.run(speed)
+                        if motor_der: motor_der.run(speed)
                         if motor_izq: motor_izq.run(-speed)
                         hub.light.on(Color.BLUE)
                     except ValueError:
