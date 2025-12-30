@@ -1,5 +1,5 @@
 # ControlMotores.py
-\n+# Rol arquitectura: SERVIDOR (Hub LEGO) — este archivo define el script
+# Rol arquitectura: SERVIDOR (Hub LEGO) — este archivo define el script
 # que se carga desde el PC y se ejecuta dentro del hub. Actúa como
 # "servidor" porque recibe (por stdin vía BLE) los comandos del cliente y
 # controla los motores.

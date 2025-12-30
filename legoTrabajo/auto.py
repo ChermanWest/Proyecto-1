@@ -1,8 +1,6 @@
 """
 auto.py
-Rol arquitectura: SERVIDOR (Hub LEGO) — script alternativo para ejecutarse
-directamente en el hub (sin la GUI). Actúa como servidor: lee stdin (lo que
-llega por BLE/USB) y controla los motores.
+Rol arquitectura: robot (Hub LEGO) que asigna los nombrea a variables necesarias para controlar los motores.
 """
 
 from pybricks.hubs import PrimeHub
@@ -11,9 +9,8 @@ from pybricks.parameters import Port
 from pybricks.tools import wait
 import sys
 
-# -----------------------------
 # CONFIGURACIÓN DE MOTORES
-# -----------------------------
+
 hub = PrimeHub()
 
 motorA = Motor(Port.A)   # Rueda derecha
@@ -40,25 +37,10 @@ def detener():
     motorA.stop()
     motor_izq.stop()
 
-# ----------------------------------------
-# ENVÍA "rdy" PARA INDICAR QUE ESTÁ LISTO
-# ----------------------------------------
-def enviar_ready():
-    # Añade un salto de línea para que el receptor basado en GATT pueda
-    # recibir la notificación por líneas.
-    sys.stdout.write("\x01rdy\n")
-    sys.stdout.flush()
-
-enviar_ready()
-
-# ----------------------------------------
 # BUCLE PRINCIPAL DE COMANDOS
-# ----------------------------------------
+
 while True:
 
-    # Leer por línea en lugar de `read()` que bloquea hasta EOF.
-    # Esto permite recibir comandos que el cliente BLE envía terminados
-    # con un '\n'.
     cmd = sys.stdin.readline()
 
     if not cmd:
@@ -66,5 +48,3 @@ while True:
         continue
     cmd = cmd.strip()
 
-    # Confirma recepción al PC
-    enviar_ready()

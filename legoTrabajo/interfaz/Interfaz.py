@@ -173,8 +173,8 @@ class LegoGUI(ctk.CTk):
         cmd = f"{direction}{speed}"
         if self.worker.running.is_set():
             self.worker.send_packet(cmd)
-                    # Transporte cliente→servidor (BLE): canal para enviar comandos al hub
-                    self.worker = BLEWorker(self.log_queue)
+                    # Transporte cliente -servidor (BLE): canal para enviar comandos al hub
+            self.worker = BLEWorker(self.log_queue)
     def cmd_stop_traction(self, event=None):
         if self.worker.running.is_set():
             self.worker.send_packet("S")
